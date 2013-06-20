@@ -1,4 +1,5 @@
-PixelFilter
+Pixel8
 ===========
 
-Pixelates images using HTML5 Canvas. Accepts multiple input element types including canvas, image, and video.
+Pixelate images or video using HTML5 Canvas. Accepts multiple input element
+types including canvas, image, and video.
