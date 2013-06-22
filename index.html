@@ -5,29 +5,39 @@
     <script type="text/javascript" src="CamMan.js"></script>
     <script type="text/javascript" src="Pixel8.js"></script>
 
+    <style>
+      #starry-night {
+        max-width: 800px;
+      }
+    </style>
   </head>
   <body style="text-align:center;">
     <div id="cam-container"><h2>Pixel Cam</h2></div>
     <div id="image-container">
       <h2>Van Gogh's Starry Night</h2>
-      <img id="starry-night" src="img/starry_night.jpg" width="50%"/>
+      <img id="starry-night" src="img/starry_night.jpg"/>
     </div>
     <script type="text/javascript">
       var camMan = new CamMan();
 
       camMan.on('start', function () {
         camMan.getCanvas('cam-container', function (canvas) {
-          Pixel8(canvas, [{ shape: 'circle', resolution: 24 },
-{ shape: 'circle', resolution: 24, size: 9, offset: 12 }]);
+          Pixel8(canvas, [{ resolution: 8 }]);
         });
       });
 
       camMan.start();
 
       var starryNight = document.getElementById('starry-night');
+
       starryNight.onload = function () {
+
+        console.log('starry night width: ' + starryNight.width);
+        console.log('starry night height: ' + starryNight.height);
+
+        console.log('starry night loaded');
         Pixel8(starryNight, [{ shape: 'circle', resolution: 24 },
-{ shape: 'circle', resolution: 24, size: 9, offset: 12 }]);
+          { shape: 'circle', resolution: 24, size: 9, offset: 12 }]);
       };
     </script>
   </body>
