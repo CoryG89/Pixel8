@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <title>PixelCam</title>
+    <script type="text/javascript" src="CamMan.js"></script>
+    <script type="text/javascript" src="Pixel8.js"></script>
+
+  </head>
+  <body style="text-align:center;">
+    <div id="cam-container"><h2>Pixel Cam</h2></div>
+    <div id="image-container">
+      <h2>Van Gogh's Starry Night</h2>
+      <img id="starry-night" src="img/starry_night.jpg" width="50%"/>
+    </div>
+    <script type="text/javascript">
+      var camMan = new CamMan();
+
+      camMan.on('start', function () {
+        camMan.getCanvas('cam-container', function (canvas) {
+          Pixel8(canvas, { resolution: 16 });
+        });
+      });
+
+      camMan.start();
+
+      var starryNight = document.getElementById('starry-night');
+      starryNight.onload = function () {
+      Pixel8(starryNight, [{ shape: 'diamond', resolution: 24, size: 25 },
+                            { shape: 'diamond', resolution: 24, offset: 12 },
+                            { resolution: 24, alpha: 0.5 }]);
+      };
+    </script>
+  </body>
+</html>
