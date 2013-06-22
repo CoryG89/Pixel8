@@ -2,6 +2,11 @@ var Pixel8 = (function () {
     'use strict';
 
     var Pixel8 = function Pixel8(element, options) {
+        if (!isCanvasSupported()) {
+            throw new Error('Pixel8:  requires HTML5 canvas support');
+            return undefined;
+        }
+
         if (getType(element) === '[object HTMLImageElement]') {
             Pixel8.processImage(element, options);
         } else if (getType(element) === '[object HTMLCanvasElement]') {
@@ -10,7 +15,7 @@ var Pixel8 = (function () {
             throw new Error('Pixel8:  unsupported element type');
         }
     }
-    
+
     var getType = function getType(object) {
         return Object.prototype.toString.call(object);
     };
@@ -46,39 +51,41 @@ var Pixel8 = (function () {
     };
 
     Pixel8.render = function render(canvas, options) {
+        var context = canvas.getContext('2d');
+        var imgData = context.getImageData(0, 0, canvas.width, canvas.height);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
         if (getType(options) === '[object Object]') {
-            Pixel8.renderPass(canvas, options);
+            Pixel8.renderPass(context, imgData, options);
         } else if (getType(options) === '[object Array]') {
             for (var i = 0; i < options.length; i++) {
-                Pixel8.renderPass(canvas, options[i]);
+                Pixel8.renderPass(context, imgData, options[i]);
             }
         } else {
             throw new Error('Pixel8.render:  unsupported options type');
         }
     };
 
-    Pixel8.renderPass = function renderPass (canvas, opts) {
-        var w = canvas.width;
-        var h = canvas.height;
-        var ctx = canvas.getContext('2d');
-        var imgData = ctx.getImageData(0, 0, w, h);
+    Pixel8.renderPass = function renderPass(ctx, imgData, opts) {
+        var w = imgData.width;
+        var h = imgData.height;
         var pixelData = imgData.data;
 
-        // option defaults
+        /** Option defaults */
         var res = opts.resolution || 16;
         var size = opts.size || res;
+        if (shape === 'diamond') size /= Math.SQRT2;
+        var halfSize = size / 2;
         var shape = opts.shape || 'square';
         var alpha = opts.alpha || 1;
+        var cols = w / res + 1;
+        var rows = h / res + 1;
+
+        /** Set offset values, check for multiple formats */
         var offset = opts.offset || 0;
         var offsetX = 0;
         var offsetY = 0;
-        var cols = w / res + 1;
-        var rows = h / res + 1;
-        var diamondSize = size / Math.SQRT2;
-        var halfSize = shape === 'diamond' ? diamondSize : size / 2;
-
         var offsetType = getType(offset);
-
         if (offsetType === '[object Object]') {
             offsetX = offset.x || 0;
             offsetY = offset.y || 0;
@@ -89,27 +96,35 @@ var Pixel8 = (function () {
             offsetX = offsetY = offset;
         }
 
-        var row, col, x, y, pixelY, pixelX, pixelIndex, r, g, b, a;
+        /** Calculate num of rows and cols to be used based on resolution */
+        var rows = h / res + 1;
+        var cols = w / res + 1;
 
-        for (row = 0; row < rows; row++) {
-            y = (row - 0.5) * res + offsetY
-            // normalize y so shapes around edges get color
-            pixelY = Math.max(Math.min(y, h - 1), 0)
+        for (var row = 0; row < rows; row++) {
 
-            for (col = 0; col < cols; col++) {
-                x = (col - 0.5) * res + offsetX
-                
-                /** Normalize so pixels around the edge get color */
-                pixelX = Math.max(Math.min(x, w - 1), 0);
+            /** Determine y position and normalize so edges get color */
+            var y = (row - 0.5) * res + offsetY;
+            var pixelY = Math.max(Math.min(y, h - 1), 0);
 
-                pixelIndex = (pixelX + pixelY * w) * 4
-                r = pixelData[pixelIndex + 0]
-                g = pixelData[pixelIndex + 1]
-                b = pixelData[pixelIndex + 2]
-                a = alpha * (pixelData[pixelIndex + 3] / 255)
+            for (var col = 0; col < cols; col++) {
 
+                /** Determine x position and normalize so edges get color */
+                var x = (col - 0.5) * res + offsetX;
+                var pixelX = Math.max(Math.min(x, w - 1), 0);
+
+                /** Determine index of pixel in data array */
+                var pixelIndex = (pixelY * w + pixelX) * 4;
+
+                /** Extract color information from all channels */
+                var r = pixelData[pixelIndex + 0];
+                var g = pixelData[pixelIndex + 1];
+                var b = pixelData[pixelIndex + 2];
+                var a = alpha * (pixelData[pixelIndex + 3] / 255);
+
+                /** Set fill style for drawing based on pixel data */
                 ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
 
+                /** Draw a pixel depending on the selected shape option */
                 switch (shape) {
                     case 'circle':
                         ctx.beginPath()
@@ -121,26 +136,21 @@ var Pixel8 = (function () {
                         ctx.save();
                         ctx.translate(x, y);
                         ctx.rotate(Math.PI / 4);
-                        size = size / Math.SQRT2;
                         ctx.fillRect(-halfSize, -halfSize, size, size);
                         ctx.restore();
                         break;
                     case 'square':
                         ctx.fillRect(x - halfSize, y - halfSize, size, size);
-                } 
+                        break;
+                    default:
+                        throw new Error('Pixel8:  unsupported shape type');
+                        break;
+                }
             }
         }
 
     }
 
-    Pixel8.prototype.render = function (canvas, options) {
-        Pixel8.render(canvas, options)
-    }
-
-    Pixel8.prototype.renderPass = function (opt) {
-        Pixel8.renderPass(this.canvas, options)
-    }
-
+    /** Expose main Pixel8 function to global namespace */
     return Pixel8;
-
 })();
