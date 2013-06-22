@@ -22,7 +22,7 @@
 
       camMan.on('start', function () {
         camMan.getCanvas('cam-container', function (canvas) {
-          Pixel8(canvas, [{ resolution: 8 }]);
+          Pixel8(canvas, { resolution: 6, size: 4 });
         });
       });
 
@@ -30,14 +30,13 @@
 
       var starryNight = document.getElementById('starry-night');
 
+      var renderPasses = [
+        { shape: 'circle', resolution: 24 },
+        { shape: 'circle', resolution: 24, size: 9, offset: 12 }
+      ];
+
       starryNight.onload = function () {
-
-        console.log('starry night width: ' + starryNight.width);
-        console.log('starry night height: ' + starryNight.height);
-
-        console.log('starry night loaded');
-        Pixel8(starryNight, [{ shape: 'circle', resolution: 24 },
-          { shape: 'circle', resolution: 24, size: 9, offset: 12 }]);
+        Pixel8(starryNight, renderPasses);
       };
     </script>
   </body>

@@ -6,7 +6,7 @@ var Pixel8 = (function () {
             throw new Error('Pixel8:  requires HTML5 canvas support');
             return undefined;
         }
-        console.log('constructing');
+
         if (getType(element) === '[object HTMLImageElement]') {
             Pixel8.processImage(element, options);
         } else if (getType(element) === '[object HTMLCanvasElement]') {
@@ -16,7 +16,7 @@ var Pixel8 = (function () {
         }
     };
 
-    var Pixel = function pixelData(r, g, b, a) {
+    var Pixel = function Pixel(r, g, b, a) {
         this.r = r;
         this.g = g;
         this.b = b;
@@ -52,7 +52,6 @@ var Pixel8 = (function () {
         var context = canvas.getContext('2d');
         canvas.className = image.className;
         canvas.id = image.id;
-
         canvas.width = image.width;
         canvas.height = image.height;
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -109,8 +108,6 @@ var Pixel8 = (function () {
         /** Option defaults */
         var res = options.resolution || 16;
         var size = options.size || res;
-        if (shape === 'diamond') size /= Math.SQRT2;
-        var halfSize = size / 2;
         var shape = options.shape || 'square';
         var alpha = options.alpha || 1;
         var cols = w / res + 1;
@@ -153,31 +150,89 @@ var Pixel8 = (function () {
                 /** Set fill style for drawing based on pixel data */
                 ctx.fillStyle = getRGB(pixel);
 
-                /** Draw a pixel depending on the selected shape option */
-                switch (shape) {
-                    case 'circle':
-                        ctx.beginPath()
-                        ctx.arc(x, y, halfSize, 0, 2 * Math.PI, true)
-                        ctx.fill();
-                        ctx.closePath();
-                        break;
-                    case 'diamond':
-                        ctx.save();
-                        ctx.translate(x, y);
-                        ctx.rotate(Math.PI / 4);
-                        ctx.fillRect(-halfSize, -halfSize, size, size);
-                        ctx.restore();
-                        break;
-                    case 'square':
-                        ctx.fillRect(x - halfSize, y - halfSize, size, size);
-                        break;
-                    default:
-                        throw new Error('Pixel8:  unsupported shape type');
-                        break;
-                }
+                Pixel8.draw[shape](ctx, x, y, size);
             }
         }
     }
+
+    Pixel8.drawPixel = function drawPixel(ctx, x, y, size, shape) {
+        /** Draw a pixel depending on the selected shape option */
+        var halfSize = size / 2;
+        switch (shape) {
+            case 'circle':
+                Pixel8.drawCircle(ctx, x, y, size);
+                break;
+            case 'diamond':
+                size /= Math.SQRT2;
+                halfSize = size / 2;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillRect(-halfSize, -halfSize, size, size);
+                ctx.restore();
+                break;
+            case 'star':
+                size /= Math.SQRT2;
+                halfSize = size / 2;
+                ctx.save();
+                ctx.beginPath();
+                ctx.translate(x, y);
+                ctx.moveTo(0, 0 - size);
+                for (var i = 0; i < 5; i++) {
+                    ctx.rotate(Math.PI / 5);
+                    ctx.lineTo(0, 0 - halfSize);
+                    ctx.rotate(Math.PI / 5);
+                    ctx.lineTo(0, 0 - size);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+                break;
+            case 'square':
+                ctx.fillRect(x - (size / 2), y - halfSize, size, size);
+                break;
+            default:
+                throw new Error('Pixel8:  unsupported shape type');
+                break;
+        }
+    };
+
+    Pixel8.draw = {
+        square: function drawSquare(ctx, x, y, size) {
+            var halfSize = size / 2;
+            ctx.fillRect(x - halfSize, y - halfSize, size, size);
+        },
+        circle: function drawCircle(ctx, x, y, size) {
+            ctx.beginPath();
+            ctx.arc(x, y, (size / 2), 0, 2 * Math.PI, true);
+            ctx.fill();
+            ctx.closePath();
+        },
+        diamond: function drawDiamond(ctx, x, y, size) {
+            size /= Math.SQRT2;
+            var halfSize = size / 2;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillRect(-halfSize, -halfSize, size, size);
+            ctx.restore();
+        },
+        star: function drawStar(ctx, x, y, size) {
+            size /= Math.SQRT2;
+            ctx.save();
+            ctx.beginPath();
+            ctx.translate(x, y);
+            ctx.moveTo(0, 0 - size);
+            for (var i = 0; i < 5; i++) {
+                ctx.rotate(Math.PI / 5);
+                ctx.lineTo(0, 0 - (size / 2));
+                ctx.rotate(Math.PI / 5);
+                ctx.lineTo(0, 0 - size);
+            }
+            ctx.fill();
+            ctx.restore();
+        }
+    };        
 
     /** Expose main Pixel8 function to global namespace */
     return Pixel8;
