@@ -31,26 +31,27 @@ var Pixel8 = (function () {
         }
     };
 
-    var Pixel = function Pixel(r, g, b, a) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-    };
+    /** Store RGBA values given image data and an x,y pixel coordinate */
+    var Pixel = function Pixel(imageData, x, y) {
 
-    var getPixel = function getPixel(imgData, x, y) {
-        var pixelIndex = (y * imgData.width + x) * 4;
+        /** Get new pixel data given image data and x,y pixel coordinate */
+        this.getData = function (imageData, x, y) {
+            this.index = (y * imageData.width + x) * 4;
 
-        var r = imgData.data[pixelIndex];
-        var g = imgData.data[pixelIndex + 1];
-        var b = imgData.data[pixelIndex + 2];
-        var a = imgData.data[pixelIndex + 3];
+            this.r = imageData.data[this.index];
+            this.g = imageData.data[this.index + 1];
+            this.b = imageData.data[this.index + 2];
+            this.a = imageData.data[this.index + 3];
+        };
 
-        return new Pixel(r, g, b, a);
-    };
+        /** Return pixel data as an RGBA formatted string */
+        this.toString = function () {
+            return 'rgba(' + this.r + ',' + this.g + ',' +
+                             this.b + ',' + this.a + ')';
+        };
 
-    var getRGB = function getRGB(pxl) {
-        return 'rgba(' + pxl.r + ',' + pxl.g + ',' + pxl.b + ',' + pxl.a + ')';
+        /** Get initial data from constructor if arguments present */
+        if (imageData && x && y)  this.getData(imageData, x, y);
     };
 
     var getType = function getType(object) {
@@ -92,7 +93,7 @@ var Pixel8 = (function () {
         return image;
     };
 
-    Pixel8.clear = function clear(canvas) {
+    var clearCanvas = function clearCanvas(canvas) {
         var context = canvas.getContext('2d');
         context.clearRect(0, 0, canvas.width, canvas.height);
         if (Pixel8.options.clearColor) {
@@ -104,10 +105,13 @@ var Pixel8 = (function () {
     };
 
     /** Process an image element, getting a canvas, edits image src */
-    Pixel8.processImage = function processImage(image, options) {
+    Pixel8.processImage = function processImage(image, options, globalOptions) {
         var canvas = getCanvasFromElement(image);
         Pixel8.render(canvas, options);
-        getImageFromCanvas(canvas, image);
+        if (globalOptions && globalOptions.replaceImage)
+            image.parentElement.replaceChild(canvas, video);
+        else
+            getImageFromCanvas(canvas, image);
     };
 
     /** Process a video element, replaces the video with a canvas element */
@@ -121,7 +125,7 @@ var Pixel8 = (function () {
     Pixel8.render = function render(canvas, options) {
         var context = canvas.getContext('2d');
         var imgData = context.getImageData(0, 0, canvas.width, canvas.height);
-        Pixel8.clear(canvas);
+        clearCanvas(canvas);
 
         if (getType(options) === '[object Object]') {
             Pixel8.renderPass(context, imgData, options);
@@ -164,6 +168,9 @@ var Pixel8 = (function () {
         var rows = height / resolution + 1;
         var columns = width / resolution + 1;
 
+        /** Single object to store each pixel's data as it's processed */
+        var pixel = new Pixel();
+
         for (var row = 0; row < rows; row++) {
 
             /** Determine y position, normalize so edges get color */
@@ -176,14 +183,12 @@ var Pixel8 = (function () {
                 var x = (col - 0.5) * resolution + offsetX;
                 var pixelX = Math.max(Math.min(x, width - 1), 0);
 
-                /** Get the pixel data at this x,y coordinate */
-                var pixel = getPixel(imgData, pixelX, pixelY);
-
-                /** Update pixel alpha value */
+                /** Get the pixel data at this x,y coordinate, update alpha */
+                pixel.getData(imgData, pixelX, pixelY);
                 pixel.a = alpha / (pixel.a / 255);
 
                 /** Set fill style for drawing based on pixel data */
-                ctx.fillStyle = getRGB(pixel);
+                ctx.fillStyle = pixel.toString();
 
                 /** Lookup the draw function based on shape and execute it */
                 Pixel8.draw[shape](ctx, x, y, size);
