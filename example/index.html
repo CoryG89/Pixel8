@@ -2,8 +2,8 @@
 <html>
   <head>
     <title>PixelCam</title>
-    <script type="text/javascript" src="CamMan.js"></script>
-    <script type="text/javascript" src="Pixel8.js"></script>
+    <script type="text/javascript" src="js/CamMan.min.js"></script>
+    <script type="text/javascript" src="../Pixel8.js"></script>
 
     <style>
       #starry-night {
@@ -21,8 +21,11 @@
       var camMan = new CamMan();
 
       camMan.on('start', function () {
-        camMan.getCanvas('cam-container', function (canvas) {
-          Pixel8(canvas, { resolution: 6, size: 4 });
+        camMan.getCanvas({
+          container: 'cam-container', 
+          onFrame: function (canvas) {
+            Pixel8(canvas, { resolution: 6, size: 4 }, { clearColor: 'black' });
+          }
         });
       });
 
@@ -36,7 +39,7 @@
       ];
 
       starryNight.onload = function () {
-        Pixel8(starryNight, renderPasses);
+        Pixel8(starryNight, renderPasses, { clearColor: 'black' });
       };
     </script>
   </body>

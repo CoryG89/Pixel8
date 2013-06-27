@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ `git rev-parse --abbrev-ref HEAD` == "master" ]; then
+
+	# Run UglifyJS to minify the source code
+	##################################################################
+	uglifyjs Pixel8.js -v -nc -o Pixel8.min.js
+	git add Pixel8.min.js
+
+fi

@@ -1,18 +1,33 @@
 var Pixel8 = (function () {
     'use strict';
 
-    var Pixel8 = function Pixel8(element, options) {
+    var Pixel8 = function Pixel8(element, options, globalOptions) {
         if (!isCanvasSupported()) {
             throw new Error('Pixel8:  requires HTML5 canvas support');
-            return undefined;
         }
+        Pixel8.options = {
+            clearColor: null
+        };
+        setOptions(globalOptions);
 
-        if (getType(element) === '[object HTMLImageElement]') {
-            Pixel8.processImage(element, options);
-        } else if (getType(element) === '[object HTMLCanvasElement]') {
+        if (getType(element) === '[object HTMLCanvasElement]')
             Pixel8.render(element, options)
-        } else {
+
+        else if (getType(element) === '[object HTMLImageElement]')
+            Pixel8.processImage(element, options);
+
+        else if (getType(options) === '[object HTMLVideoElement]')
+            Pixel8.processVideo(element, options);
+
+        else
             throw new Error('Pixel8:  unsupported element type');
+    };
+
+    /** Set global options which are the same for each rendering pass */
+    var setOptions = function setOptions(options) {
+        if (options) {
+            if (options.clearColor)
+                Pixel8.options.clearColor = options.clearColor;
         }
     };
 
@@ -47,20 +62,18 @@ var Pixel8 = (function () {
         return !!(element.getContext && element.getContext('2d'));
     };
 
-    var getCanvasFromImage = function getImageCanvasFromImage(image) {
+    var getCanvasFromElement = function getImageCanvasFromElement(element) {
         var canvas = document.createElement('canvas');
         var context = canvas.getContext('2d');
-        canvas.className = image.className;
-        canvas.id = image.id;
-        canvas.width = image.width;
-        canvas.height = image.height;
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        canvas.className = element.className;
+        canvas.id = element.id;
+        canvas.width = element.width;
+        canvas.height = element.height;
+        context.drawImage(element, 0, 0, canvas.width, canvas.height);
         return canvas;
     };
 
     var getImageFromCanvas = function getImageFromCanvas(canvas, image) {
-        var context = canvas.getContext('2d');
-        var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         if (!image) image = new Image();
 
         /** Store the old onload handler in a new onload handler. When the new
@@ -79,16 +92,36 @@ var Pixel8 = (function () {
         return image;
     };
 
+    Pixel8.clear = function clear(canvas) {
+        var context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        if (Pixel8.options.clearColor) {
+            var prevFillStyle = context.fillStyle;
+            context.fillStyle = Pixel8.options.clearColor;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = prevFillStyle;
+        }
+    };
+
+    /** Process an image element, getting a canvas, edits image src */
     Pixel8.processImage = function processImage(image, options) {
-        var canvas = getCanvasFromImage(image);
+        var canvas = getCanvasFromElement(image);
         Pixel8.render(canvas, options);
         getImageFromCanvas(canvas, image);
     };
 
+    /** Process a video element, replaces the video with a canvas element */
+    Pixel8.processVideo = function processVideo(video, options) {
+        var canvas = getCanvasFromElement(video);
+        Pixel8.render(canvas, options);
+        video.parentElement.replaceChild(canvas, video);
+    };
+
+    /** Render either single or multiple passes on a canvas source element */
     Pixel8.render = function render(canvas, options) {
         var context = canvas.getContext('2d');
         var imgData = context.getImageData(0, 0, canvas.width, canvas.height);
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        Pixel8.clear(canvas);
 
         if (getType(options) === '[object Object]') {
             Pixel8.renderPass(context, imgData, options);
@@ -101,17 +134,18 @@ var Pixel8 = (function () {
         }
     };
 
+    /** Render a single pass, this is where the actual processing happens */
     Pixel8.renderPass = function renderPass(ctx, imgData, options) {
-        var w = imgData.width;
-        var h = imgData.height;
+        var width = imgData.width;
+        var height = imgData.height;
 
         /** Option defaults */
-        var res = options.resolution || 16;
-        var size = options.size || res;
+        var resolution = options.resolution || 16;
+        var size = options.size || resolution;
         var shape = options.shape || 'square';
         var alpha = options.alpha || 1;
-        var cols = w / res + 1;
-        var rows = h / res + 1;
+        var columns = width / resolution + 1;
+        var rows = height / resolution + 1;
 
         /** Set offset values, check for multiple formats */
         var offset = options.offset || 0;
@@ -128,75 +162,38 @@ var Pixel8 = (function () {
             offsetX = offsetY = offset;
         }
 
-        /** Calculate num of rows and cols to be used based on resolution */
-        var rows = h / res + 1;
-        var cols = w / res + 1;
+        /** Calculate num of rows and columns to be used based on resolution */
+        var rows = height / resolution + 1;
+        var columns = width / resolution + 1;
 
         for (var row = 0; row < rows; row++) {
 
-            /** Determine y position and normalize so edges get color */
-            var y = (row - 0.5) * res + offsetY;
-            var pixelY = Math.max(Math.min(y, h - 1), 0);
+            /** Determine y position, normalize so edges get color */
+            var y = (row - 0.5) * resolution + offsetY;
+            var pixelY = Math.max(Math.min(y, height - 1), 0);
 
-            for (var col = 0; col < cols; col++) {
+            for (var col = 0; col < columns; col++) {
 
-                /** Determine x position and normalize so edges get color */
-                var x = (col - 0.5) * res + offsetX;
-                var pixelX = Math.max(Math.min(x, w - 1), 0);
+                /** Determine x position, normalize so edges get color */
+                var x = (col - 0.5) * resolution + offsetX;
+                var pixelX = Math.max(Math.min(x, width - 1), 0);
 
                 /** Get the pixel data at this x,y coordinate */
                 var pixel = getPixel(imgData, pixelX, pixelY);
 
+                /** Update pixel alpha value */
+                pixel.a = alpha / (pixel.a / 255);
+
                 /** Set fill style for drawing based on pixel data */
                 ctx.fillStyle = getRGB(pixel);
 
+                /** Lookup the draw function based on shape and execute it */
                 Pixel8.draw[shape](ctx, x, y, size);
             }
         }
     }
 
-    Pixel8.drawPixel = function drawPixel(ctx, x, y, size, shape) {
-        /** Draw a pixel depending on the selected shape option */
-        var halfSize = size / 2;
-        switch (shape) {
-            case 'circle':
-                Pixel8.drawCircle(ctx, x, y, size);
-                break;
-            case 'diamond':
-                size /= Math.SQRT2;
-                halfSize = size / 2;
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate(Math.PI / 4);
-                ctx.fillRect(-halfSize, -halfSize, size, size);
-                ctx.restore();
-                break;
-            case 'star':
-                size /= Math.SQRT2;
-                halfSize = size / 2;
-                ctx.save();
-                ctx.beginPath();
-                ctx.translate(x, y);
-                ctx.moveTo(0, 0 - size);
-                for (var i = 0; i < 5; i++) {
-                    ctx.rotate(Math.PI / 5);
-                    ctx.lineTo(0, 0 - halfSize);
-                    ctx.rotate(Math.PI / 5);
-                    ctx.lineTo(0, 0 - size);
-                }
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-                break;
-            case 'square':
-                ctx.fillRect(x - (size / 2), y - halfSize, size, size);
-                break;
-            default:
-                throw new Error('Pixel8:  unsupported shape type');
-                break;
-        }
-    };
-
+    /** Lookup-table of draw functions mapped by shape */
     Pixel8.draw = {
         square: function drawSquare(ctx, x, y, size) {
             var halfSize = size / 2;
@@ -232,7 +229,7 @@ var Pixel8 = (function () {
             ctx.fill();
             ctx.restore();
         }
-    };        
+    };
 
     /** Expose main Pixel8 function to global namespace */
     return Pixel8;
