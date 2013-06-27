@@ -11,7 +11,7 @@ var Pixel8 = (function () {
         setOptions(globalOptions);
 
         if (getType(element) === '[object HTMLCanvasElement]')
-            Pixel8.render(element, options)
+            Pixel8.render(element, options);
 
         else if (getType(element) === '[object HTMLImageElement]')
             Pixel8.processImage(element, options);
@@ -144,8 +144,6 @@ var Pixel8 = (function () {
         var size = options.size || resolution;
         var shape = options.shape || 'square';
         var alpha = options.alpha || 1;
-        var columns = width / resolution + 1;
-        var rows = height / resolution + 1;
 
         /** Set offset values, check for multiple formats */
         var offset = options.offset || 0;
@@ -191,7 +189,7 @@ var Pixel8 = (function () {
                 Pixel8.draw[shape](ctx, x, y, size);
             }
         }
-    }
+    };
 
     /** Lookup-table of draw functions mapped by shape */
     Pixel8.draw = {
