@@ -1,10 +1,17 @@
 var Pixel8 = (function () {
     'use strict';
 
+    /** Main globally exported function, accepts canvas, image, and video
+        elements, options may be either a single object specifying options
+        for a single rendering layer or an array for multiple layers, global
+        options may be specified for all layers 
+    */
     var Pixel8 = function Pixel8(element, options, globalOptions) {
         if (!isCanvasSupported()) {
             throw new Error('Pixel8:  requires HTML5 canvas support');
         }
+        
+        /** Set default global options */
         Pixel8.options = {
             clearColor: null
         };
@@ -23,7 +30,7 @@ var Pixel8 = (function () {
             throw new Error('Pixel8:  unsupported element type');
     };
 
-    /** Set global options which are the same for each rendering pass */
+    /** Set global options which are the same for each rendering layer */
     var setOptions = function setOptions(options) {
         if (options) {
             if (options.clearColor)
@@ -54,15 +61,18 @@ var Pixel8 = (function () {
         if (imageData && x && y)  this.getData(imageData, x, y);
     };
 
+    /** Get a differentiable type string between input elements and objects */
     var getType = function getType(object) {
         return Object.prototype.toString.call(object);
     };
 
+    /** Determine whether or not HTML5 canvas is supported */
     var isCanvasSupported = function isCanvasSupported() {
         var element = document.createElement('canvas');
         return !!(element.getContext && element.getContext('2d'));
     };
 
+    /** Get a canvas from either an image or video element */
     var getCanvasFromElement = function getImageCanvasFromElement(element) {
         var canvas = document.createElement('canvas');
         var context = canvas.getContext('2d');
@@ -74,14 +84,9 @@ var Pixel8 = (function () {
         return canvas;
     };
 
-    var getImageFromCanvas = function getImageFromCanvas(canvas, image) {
-        if (!image) image = new Image();
-
-        /** Store the old onload handler in a new onload handler. When the new
-            onload is triggered by the change to image.src below, the new
-            onload will simply restore the old onload. Without this, if Pixel8
-            is called within the original onload it will cause an infinite
-            callback loop when the source is replaced below. */
+    /** Update's an image src with a canvas data url, keeping the onload
+        handler from being fired without destroying it */
+    var updateImageSrc = function updateImageSrc(canvas, image) {
         image.onload = (function (previousOnLoad) {
             return function () {
                 this.onload = previousOnLoad;
@@ -93,6 +98,8 @@ var Pixel8 = (function () {
         return image;
     };
 
+    /** Clears the canvas, implements a 'clear color' if it is set in the
+        global options by repainting the entire canvas afterwards */
     var clearCanvas = function clearCanvas(canvas) {
         var context = canvas.getContext('2d');
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -104,14 +111,15 @@ var Pixel8 = (function () {
         }
     };
 
-    /** Process an image element, getting a canvas, edits image src */
+    /** Processes an image after getting a canvas, afterwards either replacing
+        it with the canvas, or updating the image source (default) */
     Pixel8.processImage = function processImage(image, options, globalOptions) {
         var canvas = getCanvasFromElement(image);
         Pixel8.render(canvas, options);
         if (globalOptions && globalOptions.replaceImage)
             image.parentElement.replaceChild(canvas, video);
         else
-            getImageFromCanvas(canvas, image);
+            updateImageSrc(canvas, image);
     };
 
     /** Process a video element, replaces the video with a canvas element */
@@ -121,25 +129,25 @@ var Pixel8 = (function () {
         video.parentElement.replaceChild(canvas, video);
     };
 
-    /** Render either single or multiple passes on a canvas source element */
+    /** Render either a single or multiple layers on a canvas source element */
     Pixel8.render = function render(canvas, options) {
         var context = canvas.getContext('2d');
         var imgData = context.getImageData(0, 0, canvas.width, canvas.height);
         clearCanvas(canvas);
 
         if (getType(options) === '[object Object]') {
-            Pixel8.renderPass(context, imgData, options);
+            Pixel8.renderLayer(context, imgData, options);
         } else if (getType(options) === '[object Array]') {
             for (var i = 0; i < options.length; i++) {
-                Pixel8.renderPass(context, imgData, options[i]);
+                Pixel8.renderLayer(context, imgData, options[i]);
             }
         } else {
             throw new Error('Pixel8.render:  unsupported options type');
         }
     };
 
-    /** Render a single pass, this is where the actual processing happens */
-    Pixel8.renderPass = function renderPass(ctx, imgData, options) {
+    /** Render a single layer, this is where the actual processing happens */
+    Pixel8.renderLayer = function renderLayer(ctx, imgData, options) {
         var width = imgData.width;
         var height = imgData.height;
 
